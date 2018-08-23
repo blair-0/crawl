@@ -6,7 +6,7 @@
 # @File     : main.py
 # @Software : PyCharm
 
-import urllib
+import urllib, re
 
 def download(url,
              user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
@@ -17,7 +17,7 @@ def download(url,
     request = urllib.request.Request(url)
     request.add_header('User-agent', user_agent)
     try:
-        html = urllib.request.urlopen(request).read()
+        html = urllib.request.urlopen(request).read().decode()
     except urllib.error.URLError as e:
         print('Download error:', e.reason)
         html = None
@@ -25,4 +25,12 @@ def download(url,
             if hasattr(e, 'code') and 500 <= e.code < 600:
                 # 返回 5xx 错误则重试
                 return download(url, user_agent, num_retries-1)
+    return html
+
+def crawl_sitemap(url):
+    sitemap = download(url)
+    links = re.findall('<loc>(.*?)</loc>', sitemap)
+    for link in links:
+        html = download(link)
+
     return html
