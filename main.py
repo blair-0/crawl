@@ -8,15 +8,21 @@
 
 import urllib
 
-def download(url, num_retries=2):
+def download(url,
+             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
+                        AppleWebKit/537.36 (KHTML, like Gecko) \
+                        Chrome/68.0.3440.106 Safari/537.36',
+             num_retries=2):
     print('Downloading:', url)
+    request = urllib.request.Request(url)
+    request.add_header('User-agent', user_agent)
     try:
-        html = urllib.request.urlopen(url).read()
+        html = urllib.request.urlopen(request).read()
     except urllib.error.URLError as e:
         print('Download error:', e.reason)
         html = None
         if num_retries > 0:
             if hasattr(e, 'code') and 500 <= e.code < 600:
                 # 返回 5xx 错误则重试
-                return download(url, num_retries-1)
+                return download(url, user_agent, num_retries-1)
     return html
