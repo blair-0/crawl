@@ -17,6 +17,7 @@ def download(url,
     request = urllib.request.Request(url)
     request.add_header('User-agent', user_agent)
     try:
+        # python3 中返回的是bytes类型，为了后面方便处理，在此处decode
         html = urllib.request.urlopen(request).read().decode()
     except urllib.error.URLError as e:
         print('Download error:', e.reason)
