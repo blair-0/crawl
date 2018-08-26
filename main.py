@@ -7,6 +7,41 @@
 # @Software : PyCharm
 
 import urllib, re
+import itertools
+from html.parser import HTMLParser
+
+class MyHTMLParser(HTMLParser):
+    def __init__(self):
+        HTMLParser.__init__(self)
+        # 存放每个币种和对应的URL
+        self.coin_url = {}
+        # 是否进入了"id=table"的表格，里面包含币种列表
+        self.coin_table_tag = False
+        # 是否是表格中每行的第一个<a></a>标签，里面包含币种对应的url
+        self.first_a = False
+
+    def handle_starttag(self, tag, attrs):
+        if ('id', 'table') in attrs:
+            print('get table')
+            self.coin_table_tag = True
+        if self.coin_table_tag and tag == 'tr':
+            for attr in attrs:
+                if attr[0] == 'id':
+                    self.coin_id = attr[1]
+                    self.first_a = True
+        if self.first_a and tag == 'a':
+            for att in attrs:
+                if att[0] == 'href':
+                    print('add {}'.format(self.coin_id))
+                    self.coin_url[self.coin_id] = att[1]
+
+    def handle_endtag(self, tag):
+        if self.coin_table_tag and tag == 'table':
+            self.coin_table_tag = False
+        if self.first_a and tag == 'a':
+            self.first_a = False
+
+
 
 def download(url,
              user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
@@ -35,3 +70,14 @@ def crawl_sitemap(url):
         html = download(link)
 
     return html
+
+def iter_url(url):
+    for page in itertools.count(1):
+        page_url = url + '/list_{}.html'.format(page)
+        html = download(page_url)
+        parse = MyHTMLParser()
+        parse.feed(html)
+        print(parse.coin_url)
+        if not parse.coin_url:
+            print(page)
+            break
