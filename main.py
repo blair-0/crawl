@@ -49,7 +49,8 @@ def download(url,
              user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
                         AppleWebKit/537.36 (KHTML, like Gecko) \
                         Chrome/68.0.3440.106 Safari/537.36',
-             num_retries=2):
+             num_retries=2,
+             proxy=None):
     rp = urllib.robotparser.RobotFileParser()
     rp.set_url(urllib.parse.urljoin(url, 'robots.txt'))
     rp.read()
@@ -59,9 +60,13 @@ def download(url,
     print('Downloading:', url)
     request = urllib.request.Request(url)
     request.add_header('User-agent', user_agent)
+    opener = urllib.request.build_opener()
+    if proxy:
+        proxy_params = {urllib.urlparse(url).scheme: proxy}
+        opener = urllib.request.build_opener(proxy_params)
     try:
         # python3 中返回的是bytes类型，为了后面方便处理，在此处decode
-        html = urllib.request.urlopen(request).read().decode()
+        html = opener.open(request).read().decode()
     except urllib.error.URLError as e:
         print('Download error:', e.reason)
         html = None
