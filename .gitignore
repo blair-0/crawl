@@ -106,7 +106,7 @@ venv.bak/
 .mypy_cache/
 
 将删除 .gitignore
-将删除 .idea/
+.idea/
 /colors.scheme.xml
 /editor.codeinsight.xml
 /ignore.xml
