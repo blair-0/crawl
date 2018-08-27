@@ -6,7 +6,8 @@
 # @File     : main.py
 # @Software : PyCharm
 
-import urllib
+import urllib.robotparser, urllib.request, urllib.request
+import ssl
 import re
 import itertools
 from html.parser import HTMLParser
@@ -44,29 +45,40 @@ class MyHTMLParser(HTMLParser):
             self.first_a = False
 
 
-
 def download(url,
              user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
                         AppleWebKit/537.36 (KHTML, like Gecko) \
                         Chrome/68.0.3440.106 Safari/537.36',
              num_retries=2,
-             proxy=None):
+             proxy=None,
+             ca_file=None):
+    # 后面有设置全局的ProxyHandler，这里重置为初始的，否则robotparser会报代理证书问题
+    urllib.request.install_opener(urllib.request.build_opener(urllib.request.BaseHandler()))
     rp = urllib.robotparser.RobotFileParser()
     rp.set_url(urllib.parse.urljoin(url, 'robots.txt'))
     rp.read()
     # robots.txt检查，只显示警告信息，不做实际处理
     if not rp.can_fetch(user_agent, url):
         print('Blocked by robots.txt: {}'.format(url))
-    print('Downloading:', url)
     request = urllib.request.Request(url)
     request.add_header('User-agent', user_agent)
-    opener = urllib.request.build_opener()
     if proxy:
-        proxy_params = {urllib.urlparse(url).scheme: proxy}
-        opener = urllib.request.build_opener(proxy_params)
+        print('use proxy')
+        proxy_params = {urllib.parse.urlparse(url).scheme: proxy}
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler(proxy_params))
+        urllib.request.install_opener(opener)
+    if ca_file:
+        print('use ca')
+        ssl_ctx = ssl.SSLContext()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        ssl_ctx.load_verify_locations(ca_file)
+    else:
+        ssl_ctx = None
+    print('Downloading:', url)
     try:
         # python3 中返回的是bytes类型，为了后面方便处理，在此处decode
-        html = opener.open(request).read().decode()
+        html = urllib.request.urlopen(request, context=ssl_ctx).read().decode()
     except urllib.error.URLError as e:
         print('Download error:', e.reason)
         html = None
@@ -84,11 +96,13 @@ def crawl_sitemap(url):
 
     return html
 
-def iter_url(url):
+def iter_url(url, proxy=None, ca_file=None):
     coin_urls = {}
     for page in itertools.count(1):
         page_url = urllib.parse.urljoin(url, '/list_{}.html'.format(page))
-        html = download(page_url)
+        # 此proxy地址为XX-net地址，CA.crt是goagent的CA证书
+        #html = download(page_url, proxy="http://192.168.1.148:8087", ca_file='./data/CA.crt')
+        html = download(page_url, proxy=proxy, ca_file=ca_file)
         parse = MyHTMLParser(url)
         parse.feed(html)
         print(parse.coin_url)
