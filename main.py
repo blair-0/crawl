@@ -71,11 +71,14 @@ class MyHTMLParser(urllib.parse.HTMLParser):
 class MyHTMLParser():
     def __init__(self, html_doc, seed_url):
         self.seed_url = seed_url
-        self.only_tr_id = SoupStrainer("tr" > "a", id=True)
+        self.only_tr_id = SoupStrainer("tr", id=True)
         self.html_doc = html_doc
+        self.soup = BeautifulSoup(self.html_doc, 'lxml', parse_only=self.only_tr_id, )
+        self.page_coin_urls = {}
 
     def get_coin_url(self):
-        self.soup = BeautifulSoup(self.html_doc, parse_only=self.only_tr_id)
+        for tag in self.soup.select('tr'):
+            self.page_coin_urls[tag['id']] = urllib.parse.urljoin(self.seed_url, tag.a['href'])
 
     def get_coin_info(self):
         pass
@@ -143,13 +146,13 @@ def iter_url(url, proxy=None, ca_file=None, delay=0):
         # 此proxy地址为XX-net地址，CA.crt是goagent的CA证书
         #html = download(page_url, proxy="http://192.168.1.148:8087", ca_file='./data/CA.crt')
         html = download(page_url, proxy=proxy, ca_file=ca_file)
-        parse = MyHTMLParser(url)
-        parse.feed(html)
-        print(parse.coin_url)
-        if not parse.coin_url:
+        parse = MyHTMLParser(html, url)
+        parse.get_coin_url()
+        print(parse.page_coin_urls)
+        if not parse.page_coin_urls:
             print(page)
             break
-        coin_urls.update(parse.coin_url)
+        coin_urls.update(parse.page_coin_urls)
     print(coin_urls)
     print(len(coin_urls))
 
