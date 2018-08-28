@@ -6,11 +6,28 @@
 # @File     : main.py
 # @Software : PyCharm
 
-import urllib.robotparser, urllib.request, urllib.request
+import urllib.robotparser, urllib.request, urllib.request, urllib.parse
 import ssl
 import re
 import itertools
+import datetime
+import time
 from html.parser import HTMLParser
+
+class Throttle:
+    def __init__(self, delay):
+        self.delay = delay
+        self.domains = {}
+
+    def wait(self, url):
+        domain = urllib.parse.urlparse(url).netloc
+        last_accessed = self.domains.get(domain)
+
+        if self.delay > 0 and last_accessed is not None:
+            sleep_secs = self.delay - (datetime.datetime.now() - last_accessed).seconds
+            if sleep_secs > 0:
+                time.sleep(sleep_secs)
+        self.domains[domain] = datetime.datetime.now()
 
 class MyHTMLParser(HTMLParser):
     def __init__(self, seed_url):
@@ -96,10 +113,12 @@ def crawl_sitemap(url):
 
     return html
 
-def iter_url(url, proxy=None, ca_file=None):
+def iter_url(url, proxy=None, ca_file=None, delay=0):
     coin_urls = {}
+    throttle = Throttle(delay)
     for page in itertools.count(1):
         page_url = urllib.parse.urljoin(url, '/list_{}.html'.format(page))
+        throttle.wait(page_url)
         # 此proxy地址为XX-net地址，CA.crt是goagent的CA证书
         #html = download(page_url, proxy="http://192.168.1.148:8087", ca_file='./data/CA.crt')
         html = download(page_url, proxy=proxy, ca_file=ca_file)
