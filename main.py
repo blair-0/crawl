@@ -12,7 +12,12 @@ import re
 import itertools
 import datetime
 import time
-from html.parser import HTMLParser
+import sys
+
+# 需要安装第三方库beautifulsoup4 和lxml（作为解析器，速度比html.parser快）
+# 需要安装chardet，加速字符编码检测
+from bs4 import BeautifulSoup
+from bs4 import SoupStrainer
 
 class Throttle:
     def __init__(self, delay):
@@ -29,7 +34,9 @@ class Throttle:
                 time.sleep(sleep_secs)
         self.domains[domain] = datetime.datetime.now()
 
-class MyHTMLParser(HTMLParser):
+
+'''
+class MyHTMLParser(urllib.parse.HTMLParser):
     def __init__(self, seed_url):
         HTMLParser.__init__(self)
         # 存放每页每个币种和对应的URL
@@ -60,7 +67,21 @@ class MyHTMLParser(HTMLParser):
             self.coin_table_tag = False
         if self.first_a and tag == 'a':
             self.first_a = False
+'''
+class MyHTMLParser():
+    def __init__(self, html_doc, seed_url):
+        self.seed_url = seed_url
+        self.only_tr_id = SoupStrainer("tr" > "a", id=True)
+        self.html_doc = html_doc
 
+    def get_coin_url(self):
+        self.soup = BeautifulSoup(self.html_doc, parse_only=self.only_tr_id)
+
+    def get_coin_info(self):
+        pass
+
+    def get_coin_price(self):
+        pass
 
 def download(url,
              user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
@@ -131,3 +152,6 @@ def iter_url(url, proxy=None, ca_file=None, delay=0):
         coin_urls.update(parse.coin_url)
     print(coin_urls)
     print(len(coin_urls))
+
+# 默认为1000，使用BeautifulSoup时可能会报异常
+sys.setrecursionlimit(2000)
