@@ -6,14 +6,41 @@
 # @File     : main.py
 # @Software : PyCharm
 
-import urllib, re
+import urllib.robotparser, urllib.request, urllib.request, urllib.parse
+import ssl
+import re
 import itertools
-from html.parser import HTMLParser
+import datetime
+import time
+import sys
 
-class MyHTMLParser(HTMLParser):
-    def __init__(self):
+# 需要安装第三方库beautifulsoup4 和lxml（作为解析器，速度比html.parser快）
+# 需要安装chardet，加速字符编码检测
+from bs4 import BeautifulSoup
+from bs4 import SoupStrainer
+
+class Throttle:
+    def __init__(self, delay):
+        self.delay = delay
+        self.domains = {}
+
+    def wait(self, url):
+        domain = urllib.parse.urlparse(url).netloc
+        last_accessed = self.domains.get(domain)
+
+        if self.delay > 0 and last_accessed is not None:
+            sleep_secs = self.delay - (datetime.datetime.now() - last_accessed).seconds
+            if sleep_secs > 0:
+                time.sleep(sleep_secs)
+        self.domains[domain] = datetime.datetime.now()
+
+
+'''
+class MyHTMLParser(urllib.parse.HTMLParser):
+    def __init__(self, seed_url):
         HTMLParser.__init__(self)
-        # 存放每个币种和对应的URL
+        # 存放每页每个币种和对应的URL
+        self.seed_url = seed_url
         self.coin_url = {}
         # 是否进入了"id=table"的表格，里面包含币种列表
         self.coin_table_tag = False
@@ -30,30 +57,69 @@ class MyHTMLParser(HTMLParser):
                     self.coin_id = attr[1]
                     self.first_a = True
         if self.first_a and tag == 'a':
-            for att in attrs:
-                if att[0] == 'href':
+            for attr in attrs:
+                if attr[0] == 'href':
                     print('add {}'.format(self.coin_id))
-                    self.coin_url[self.coin_id] = att[1]
+                    self.coin_url[self.coin_id] = urllib.parse.urljoin(self.seed_url, attr[1])
 
     def handle_endtag(self, tag):
         if self.coin_table_tag and tag == 'table':
             self.coin_table_tag = False
         if self.first_a and tag == 'a':
             self.first_a = False
+'''
+class MyHTMLParser():
+    def __init__(self, html_doc, seed_url):
+        self.seed_url = seed_url
+        self.only_tr_id = SoupStrainer("tr", id=True)
+        self.html_doc = html_doc
+        self.soup = BeautifulSoup(self.html_doc, 'lxml', parse_only=self.only_tr_id, )
+        self.page_coin_urls = {}
 
+    def get_coin_url(self):
+        for tag in self.soup.select('tr'):
+            self.page_coin_urls[tag['id']] = urllib.parse.urljoin(self.seed_url, tag.a['href'])
 
+    def get_coin_info(self):
+        pass
+
+    def get_coin_price(self):
+        pass
 
 def download(url,
              user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
                         AppleWebKit/537.36 (KHTML, like Gecko) \
                         Chrome/68.0.3440.106 Safari/537.36',
-             num_retries=2):
-    print('Downloading:', url)
+             num_retries=2,
+             proxy=None,
+             ca_file=None):
+    # 后面有设置全局的ProxyHandler，这里重置为初始的，否则robotparser会报代理证书问题
+    urllib.request.install_opener(urllib.request.build_opener(urllib.request.BaseHandler()))
+    rp = urllib.robotparser.RobotFileParser()
+    rp.set_url(urllib.parse.urljoin(url, 'robots.txt'))
+    rp.read()
+    # robots.txt检查，只显示警告信息，不做实际处理
+    if not rp.can_fetch(user_agent, url):
+        print('Blocked by robots.txt: {}'.format(url))
     request = urllib.request.Request(url)
     request.add_header('User-agent', user_agent)
+    if proxy:
+        print('use proxy')
+        proxy_params = {urllib.parse.urlparse(url).scheme: proxy}
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler(proxy_params))
+        urllib.request.install_opener(opener)
+    if ca_file:
+        print('use ca')
+        ssl_ctx = ssl.SSLContext()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        ssl_ctx.load_verify_locations(ca_file)
+    else:
+        ssl_ctx = None
+    print('Downloading:', url)
     try:
         # python3 中返回的是bytes类型，为了后面方便处理，在此处decode
-        html = urllib.request.urlopen(request).read().decode()
+        html = urllib.request.urlopen(request, context=ssl_ctx).read().decode()
     except urllib.error.URLError as e:
         print('Download error:', e.reason)
         html = None
@@ -71,13 +137,24 @@ def crawl_sitemap(url):
 
     return html
 
-def iter_url(url):
+def iter_url(url, proxy=None, ca_file=None, delay=0):
+    coin_urls = {}
+    throttle = Throttle(delay)
     for page in itertools.count(1):
-        page_url = url + '/list_{}.html'.format(page)
-        html = download(page_url)
-        parse = MyHTMLParser()
-        parse.feed(html)
-        print(parse.coin_url)
-        if not parse.coin_url:
+        page_url = urllib.parse.urljoin(url, '/list_{}.html'.format(page))
+        throttle.wait(page_url)
+        # 此proxy地址为XX-net地址，CA.crt是goagent的CA证书
+        #html = download(page_url, proxy="http://192.168.1.148:8087", ca_file='./data/CA.crt')
+        html = download(page_url, proxy=proxy, ca_file=ca_file)
+        parse = MyHTMLParser(html, url)
+        parse.get_coin_url()
+        print(parse.page_coin_urls)
+        if not parse.page_coin_urls:
             print(page)
             break
+        coin_urls.update(parse.page_coin_urls)
+    print(coin_urls)
+    print(len(coin_urls))
+
+# 默认为1000，使用BeautifulSoup时可能会报异常
+sys.setrecursionlimit(2000)
