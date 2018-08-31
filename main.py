@@ -69,22 +69,29 @@ class MyHTMLParser(urllib.parse.HTMLParser):
             self.first_a = False
 '''
 class MyHTMLParser():
-    def __init__(self, html_doc, seed_url):
-        self.seed_url = seed_url
-        self.only_tr_id = SoupStrainer("tr", id=True)
+    def __init__(self, html_doc):
         self.html_doc = html_doc
-        self.soup = BeautifulSoup(self.html_doc, 'lxml', parse_only=self.only_tr_id, )
         self.page_coin_urls = {}
+        self.table_id = SoupStrainer("table", id="table")
+        self.div_baseInfo = SoupStrainer("div" id="baseInfo")
+        self.div_tickerlist = SoupStrainer("div" id="tickerlist")
+        self.div_timeLineBox = SoupStrainer("div" id="timeLineBox")
 
     def get_coin_url(self):
+        self.soup = BeautifulSoup(self.html_doc, "lxml", parse_only=self.table_id)
         for tag in self.soup.select('tr'):
-            self.page_coin_urls[tag['id']] = urllib.parse.urljoin(self.seed_url, tag.a['href'])
+            self.page_coin_urls[tag['id']] = tag.a['href']
 
     def get_coin_info(self):
-        pass
+        self.soup = BeautifulSoup(self.html_doc, "lxml", parse_only=self.div_baseInfo)
+        for tag in soup.select("div.lowHeight div"):
+            self.coin_info[tag.contents[0]] = tag.span.string
+        self.coin_info['des_url'] = soup.select("div.des a")[0]["href"]
+
 
     def get_coin_price(self):
         pass
+
 
 def download(url,
              user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
@@ -146,7 +153,7 @@ def iter_url(url, proxy=None, ca_file=None, delay=0):
         # 此proxy地址为XX-net地址，CA.crt是goagent的CA证书
         #html = download(page_url, proxy="http://192.168.1.148:8087", ca_file='./data/CA.crt')
         html = download(page_url, proxy=proxy, ca_file=ca_file)
-        parse = MyHTMLParser(html, url)
+        parse = MyHTMLParser(html)
         parse.get_coin_url()
         print(parse.page_coin_urls)
         if not parse.page_coin_urls:
@@ -155,6 +162,12 @@ def iter_url(url, proxy=None, ca_file=None, delay=0):
         coin_urls.update(parse.page_coin_urls)
     print(coin_urls)
     print(len(coin_urls))
+    for coin_id, coin_url in coin_urls:
+        coin_page = download(urllib.parse.urljoin(url, coin_url))
+        parse = MyHTMLParser(coin_page)
+        parse.get_coin_info()
+        des_page = download(urllib.parse.urljoin(url, parse.coin_info['des_url']))
+
 
 # 默认为1000，使用BeautifulSoup时可能会报异常
 sys.setrecursionlimit(2000)
