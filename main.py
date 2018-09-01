@@ -73,9 +73,9 @@ class MyHTMLParser():
         self.html_doc = html_doc
         self.page_coin_urls = {}
         self.table_id = SoupStrainer("table", id="table")
-        self.div_baseInfo = SoupStrainer("div" id="baseInfo")
-        self.div_tickerlist = SoupStrainer("div" id="tickerlist")
-        self.div_timeLineBox = SoupStrainer("div" id="timeLineBox")
+        self.div_baseInfo = SoupStrainer("div", id="baseInfo")
+        self.div_tickerlist = SoupStrainer("div", id="tickerlist")
+        self.div_timeLineBox = SoupStrainer("div", id="timeLineBox")
 
     def get_coin_url(self):
         self.soup = BeautifulSoup(self.html_doc, "lxml", parse_only=self.table_id)
