@@ -33,6 +33,7 @@ class CoinParser(Myparser):
         self.page_type = html.page_type
         self.page_coin_urls = {}
         self.coin_hl_price = {}
+        self.coin_sites = []
 
     def get_coin_url(self):
         if self.page_type == 'coin_list':
@@ -53,14 +54,18 @@ class CoinParser(Myparser):
                 self.coin_hl_price[tag.contents[0]] = tag.span.string
             # 获取coin 描述页URL
             self.coin_des_url = self.soup.select("div.des a")[0]["href"]
-            print(self.coin_hl_price, self.coin_des_url)
+            print(self.coin_hl_price)
+            print(self.coin_des_url)
             for tag in self.soup.select("div.secondPark li"):
                 if "白皮书" in tag.select("span.tit")[0].text:
                     self.coin_whitepaper_url = tag.select("span.value")[0].text
                 if "网站" in tag.select("span.tit")[0].text:
-                    self.sites = tag.span.a.contents
+                    for tag_a in tag.select("span.value")[0].find_all('a'):
+                        self.coin_sites.append(tag_a['href'])
 
             print(self.coin_whitepaper_url)
+            print(self.coin_sites)
+
 
     def get_coin_des(self):
         if self.page_type == 'coin_des':
