@@ -34,6 +34,9 @@ class CoinParser(Myparser):
         self.page_coin_urls = {}
         self.coin_hl_price = {}
         self.coin_sites = []
+        self.api_url = urllib.parse.urljoin('https://api.feixiaohao.com', html.url_element[2])
+        self.coin_timeline = {}
+        self.coin_markets = {}
 
     def get_coin_url(self):
         if self.page_type == 'coin_list':
@@ -75,8 +78,18 @@ class CoinParser(Myparser):
             print(self.coin_des)
 
     def get_coin_timeline(self):
-        if self.page_type == 'coin_':
-            pass
+        if self.page_type == 'coin_timeline':
+            print(self.api_url)
+            html_timeline = Downloader(self.api_url)
+            soup_timeline = Myparser(html_timeline).soup
+            for tag in soup_timeline.select("li"):
+                self.coin_timeline[tag.select("div.tit span")[0].text] = (tag.select("div.tit h3")[0].text,
+                                                                          tag.select("div.time")[0].text)
+            print(self.coin_timeline)
 
-    def get_coin_tickerlist(self):
-        pass
+    def get_coin_markets(self):
+        if self.page_type == 'coin_markets':
+            self.filter = SoupStrainer("table", id="markets")
+            self.renew_soup(self.filter)
+            for tag in self.soup.select('tbody tr'):
+                market = tag.find('a')
