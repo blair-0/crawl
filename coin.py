@@ -93,8 +93,9 @@ class CoinParser(Myparser):
             self.renew_soup(self.filter)
             for tag in self.soup.select("tbody tr"):
                 tag_td = tag.select("td")
+                rank = tag_td[0].text
                 market = tag_td[1].text.strip()
                 trade_pair = tag_td[2].text.strip()
                 price = tag_td[3].text
-                self.coin_markets[market] = (trade_pair, price)
+                self.coin_markets[rank] = (market, trade_pair, price)
             print(self.coin_markets)
