@@ -91,5 +91,10 @@ class CoinParser(Myparser):
         if self.page_type == 'coin_markets':
             self.filter = SoupStrainer("table", id="markets")
             self.renew_soup(self.filter)
-            for tag in self.soup.select('tbody tr'):
-                market = tag.find('a')
+            for tag in self.soup.select("tbody tr"):
+                tag_td = tag.select("td")
+                market = tag_td[1].text.strip()
+                trade_pair = tag_td[2].text.strip()
+                price = tag_td[3].text
+                self.coin_markets[market] = (trade_pair, price)
+            print(self.coin_markets)
