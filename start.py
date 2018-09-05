@@ -15,6 +15,9 @@ def crawl(url):
         html = coin.CoinPager(page_url, 'coin_list')
         c = coin.CoinParser(html)
         c.get_coin_url()
+        if not c.page_coin_urls:
+            print(page)
+            break
         for k,v in c.page_coin_urls.items():
             coin_html = coin.CoinPager(urllib.parse.urljoin(html.seed_url, v))
             coin_c = coin.CoinParser(coin_html)
